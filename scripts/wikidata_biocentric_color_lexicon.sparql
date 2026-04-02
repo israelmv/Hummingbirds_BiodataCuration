@@ -1,0 +1,49 @@
+# ==============================================================================
+# PROJECT: Trochilidae Knowledge Graph (TKG)
+# DOCUMENT: Biocentric Color Semantic Extraction Protocol
+# AUTHOR: IsraelMV (UNAM)
+# FILE: scripts/extract_wikidata_colors.sparql
+# ==============================================================================
+#
+# --- STEP-BY-STEP INSTRUCTIONS TO GENERATE THE DICTIONARY ---
+#
+# 1. ACCESS THE PORTAL: 
+#    Go to the official Wikidata Query Service: https://query.wikidata.org/
+#
+# 2. CLEAR THE EDITOR: 
+#    Delete any example text or previous code in the main white text area.
+#
+# 3. PASTE THE CODE: 
+#    Copy all the SPARQL code below and paste it into the editor.
+#
+# 4. EXECUTE THE QUERY: 
+#    Click the blue "Play" button (or press Ctrl + Enter).
+#
+# 5. DOWNLOAD RESULTS:
+#    - Once the table appears, click the "Download" button.
+#    - Select the "CSV" format.
+#    - Save the file in your project folder as: data/wikidata_colors_raw.csv
+#
+# ==============================================================================
+
+SELECT ?color ?colorLabel ?hex WHERE {
+  # 1. Find entities that are instances or subclasses of 'color' (Q1075)
+  ?color wdt:P31/wdt:P279* wd:Q1075. 
+  
+  # 2. Filter only those that have a registered sRGB hexadecimal code (P465)
+  ?color wdt:P465 ?hex.             
+  
+  # 3. Fetch labels in English and Spanish for taxonomic alignment
+  SERVICE wikibase:label { 
+    bd:serviceParam wikibase:language "en,es". 
+  }
+  
+  # 4. EXCLUSION PROTOCOL:
+  # Remove commercial brand colors or industrial standards (Q15132610).
+  # This prevents non-biological noise like 'Google Blue' or 'Ferrari Red'.
+  MINUS { ?color wdt:P31 wd:Q15132610. } 
+}
+
+# ==============================================================================
+# END OF PROTOCOL
+# ==============================================================================
