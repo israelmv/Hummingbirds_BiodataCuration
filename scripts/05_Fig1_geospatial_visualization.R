@@ -52,5 +52,5 @@ tkg_map_full <- ggplot() +
   )
 
 # 4. GUARDAR
-ggsave("results/Fig1_Full_Continental_Map_Final.png", plot = tkg_map_full, width = 8, height = 11, dpi = 600)
-ggsave("results/Fig1_Full_Continental_Map_Final.pdf", plot = tkg_map_full, width = 8, height = 11)
+ggsave("results/Fig3_Full_Continental_Map_Final.png", plot = tkg_map_full, width = 8, height = 11, dpi = 600)
+ggsave("results/Fig3_Full_Continental_Map_Final.pdf", plot = tkg_map_full, width = 8, height = 11)
