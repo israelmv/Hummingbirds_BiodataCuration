@@ -1,6 +1,6 @@
 # ==============================================================================
 # PROJECT: Trochilidae Knowledge Graph (TKG)
-# FIGURE 1: Full Continental Distribution
+# FIGURE 3: Full Continental Distribution
 # ==============================================================================
 
 # 1. CARGA Y LIMPIEZA AUTOMÁTICA
