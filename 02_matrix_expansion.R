@@ -32,10 +32,10 @@ tkg_annotation_matrix <- final_inat_data %>%
   crossing(anatomical_regions) %>%
   mutate(
     is_visible = TRUE,
-    sex_P21 = NA,             # Placeholder crucial para el dicromatismo (Q44148/Q43445)
-    wikidata_color_Q = NA,    # Aquí Layla pondrá el Q del color (Ej: Q3133 para verde)
-    optical_property = NA,    # Para anotar Iridiscencia (Q957208)
-    confidence_score = 1.0,   # Score inicial de confianza
+    sex_P21 = NA,             # Identifier for sexual dimorphism/dichromatism (Male: Q44148 / Female: Q43445)
+    wikidata_color_Q = NA,    # Wikidata QID for the primary plumage color (e.g., Green: Q3133)
+    optical_property = NA,    # Structural color properties such as Iridescence (Q957208)
+    confidence_score = 1.0,   # Initial data quality metric or manual verification score
     annotator_metadata = "Layla",
     timestamp = Sys.time()
   ) %>%
