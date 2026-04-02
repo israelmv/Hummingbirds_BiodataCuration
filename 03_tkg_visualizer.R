@@ -1,7 +1,6 @@
 # ==============================================================================
 # PROJECT: Trochilidae Knowledge Graph (TKG)
 # STEP 03: TKG Phenotypic Visualizer
-# SYSTEM ARCHITECT: Isra | BIOCURADURÍA LEAD: Layla
 # ==============================================================================
 
 # --- 1. DATA LOADING ---
