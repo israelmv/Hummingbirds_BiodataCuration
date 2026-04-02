@@ -1,87 +1,123 @@
 # ==============================================================================
 # PROJECT: Trochilidae Knowledge Graph (TKG)
-# STEP 04: Strict Biocentric Color Dictionary
+# STEP 04: Smart Interactive Curator (Full Species-Wide & Semantic Search)
 # ==============================================================================
-# This script processes the raw Wikidata export to create a curated color 
-# lexicon for hummingbird phenotypic annotation. 
-# It implements a rigorous filtration protocol to exclude:
-# 1. Biological/Cellular processes (e.g., "pigment cell differentiation").
-# 2. Commercial/Software brands (e.g., "Microsoft", "Android").
-# 3. Industrial standards (e.g., "Pantone", "RAL", "ISCC").
-# 4. Ghost entities (Entries where the label is just the Wikidata QID).
+# AUTHOR: IsraelMV (UNAM)
+# FILE: scripts/04_tkg_interactive_curator.R
+# DESCRIPTION: 
+# Professional annotation loop. Aggregates all unique species evidence, 
+# manages multi-photo displays, and uses a keyword-based semantic engine
+# to suggest standardized Wikidata color entities from the HBW dictionary.
 # ==============================================================================
 
+
+if (!require("rstudioapi")) install.packages("rstudioapi")
 library(dplyr)
 library(stringr)
+library(stringdist)
 
-# --- 1. DATA LOADING ---
-# Ensure query.csv is in your data/ directory
-raw_wikidata <- read.csv("data/Wikidata_colors.csv", stringsAsFactors = FALSE)
+# --- 1. FILE INTELLIGENCE ---
+session_files <- list.files("data/", pattern = "^TKG_Annotation_.*\\.csv$", full.names = TRUE)
 
-# --- 2. THE "BIO-PURGE" (ULTRA-STRICT FILTRATION) ---
-tkg_sanitized_colors <- raw_wikidata %>%
-  # Filter 1: Remove cellular, genetic, and metabolic processes (Data Noise)
-  filter(!str_detect(colorLabel, "(?i)process|cell|differentiation|granule|metabolic|developmental|hair")) %>%
-  
-  # Filter 2: Remove commercial, political, or software-related entities
-  filter(!str_detect(colorLabel, "(?i)Microsoft|Android|Discord|UCLA|Yale|Pitufo|national|Ukraine|Google|Apple|Facebook")) %>%
-  
-  # Filter 3: INDUSTRIAL CLEANING (Strict exclusion of Pantone, RAL, and ISCC codes)
-  # This ensures the ontology remains focused on natural phenotypic descriptors.
-  filter(!str_detect(colorLabel, "(?i)Pantone|RAL [0-9]|RAL color|ISCC")) %>%
-  
-  # Filter 4: REMOVE GHOST ENTITIES (Labels that are just QIDs like "Q1499005")
-  # This cleans entries lacking a natural language label in the primary metadata.
-  filter(!str_detect(colorLabel, "^Q[0-9]+$")) %>%
-  
-  # Filter 5: Visual Verification (Ensure the presence of a Hexadecimal code)
-  # Exceptions are made for common avian descriptors like "Sooty" or "brindle".
-  filter(nchar(hex) > 0 | colorLabel %in% c("Sooty", "brindle")) %>%
-  
-  # Filter 6: QID Normalization
-  mutate(wikidata_qid = str_extract(color, "Q[0-9]+"))
+if(length(session_files) > 0) {
+  input_file <- session_files[order(file.info(session_files)$mtime, decreasing = TRUE)[1]]
+  message("[SYSTEM] Resuming from: ", input_file)
+} else {
+  input_file <- "data/TKG_Evidence_Annotation_N-Obs.csv"
+  message("[SYSTEM] Starting from master matrix.")
+}
 
-# --- 3. BIOLOGICAL PROPERTY CLASSIFICATION ---
-# Automated mapping to distinguish between structural (Iridescent) and pigmentary colors.
-tkg_sanitized_colors <- tkg_sanitized_colors %>%
-  mutate(
-    type = case_when(
-      str_detect(colorLabel, "(?i)emerald|golden|sapphire|ruby|iridescent|glittering|metallic|turquoise|fiery") ~ "Iridescent",
-      str_detect(colorLabel, "(?i)rufous|buff|cinnamon|sooty|brown|grey|black|white|ochre|vinaceous") ~ "Pigmentary",
-      TRUE ~ "General"
-    ),
-    is_natural_plumage = TRUE
-  ) %>%
-  select(hbw_name = colorLabel, wikidata_qid, hex, type, is_natural_plumage) %>%
-  distinct(wikidata_qid, .keep_all = TRUE)
+color_db <- read.csv("data/color_dictionary_hbw_wikidata.csv", stringsAsFactors = FALSE)
+annotation_matrix <- read.csv(input_file, stringsAsFactors = FALSE)
 
-# --- 4. CORE 14 INTEGRATION (Arizmendi & HBW Baseline) ---
-# Hard-coded baseline to ensure consistency with the 14-region segmentation model.
-core_14 <- data.frame(
-  hbw_name = c("Emerald Green", "Golden Green", "Sapphire Blue", "Ruby Red", 
-               "Glittering Copper", "Fiery Orange", "Violet", "Rufous", 
-               "Cinnamon", "Buff", "Sooty", "White", "Black", "Iridescent Purple"),
-  wikidata_qid = c("Q691510", "Q5579480", "Q108183", "Q1120984", 
-                   "Q5168705", "Q1378330", "Q8063", "Q7377981", 
-                   "Q1148100", "Q4985885", "Q7562417", "Q23444", "Q23445", "Q211140"),
-  hex = c("50C878", "FFDF00", "0F52BA", "E0115F", "AD6F69", "FF9408", "8F00FF", "A81C07", "D2691E", "F0DC82", "121212", "FFFFFF", "000000", "6A0DAD"),
-  type = c("Iridescent", "Iridescent", "Iridescent", "Iridescent", 
-           "Glittering", "Glittering", "Iridescent", "Pigmentary", 
-           "Pigmentary", "Pigmentary", "Pigmentary", "Pigmentary", "Pigmentary", "Iridescent"),
-  is_natural_plumage = TRUE
-)
+# --- 2. GUI LOGIN ---
+current_annotator <- rstudioapi::showPrompt("Login", "Who is performing the curation?", "Israel")
+if (is.null(current_annotator) || current_annotator == "") current_annotator <- "Unknown_User"
 
-# Merge all datasets and remove duplicates
-final_dictionary <- bind_rows(tkg_sanitized_colors, core_14) %>%
-  distinct(wikidata_qid, .keep_all = TRUE) %>%
-  arrange(hbw_name)
+session_time <- format(Sys.time(), "%Y%m%d_%H%M")
+output_file <- paste0("data/TKG_Annotation_", current_annotator, "_", session_time, ".csv")
 
-# --- 5. DATA EXPORT ---
-write.csv(final_dictionary, "data/color_dictionary_hbw_wikidata.csv", row.names = FALSE)
+# --- 3. HELPER FUNCTIONS ---
 
-# Summary Output
-cat("------------------------------------------------------------\n")
-cat("TKG Semantic Dictionary Status:\n")
-cat("Final count of sanitized color entities:", nrow(final_dictionary), "\n")
-cat("Dictionary exported to: data/color_dictionary_hbw_wikidata.csv\n")
-cat("------------------------------------------------------------\n")
+get_color_gui <- function(region_name, db) {
+  while(TRUE) {
+    msg <- paste0("Color for ", toupper(region_name), " (or 'DD'):")
+    user_input <- rstudioapi::showPrompt("Color Entry", msg, "")
+    
+    if(is.null(user_input)) return(NULL) 
+    user_input <- str_trim(user_input)
+    
+    if(toupper(user_input) == "DD") return(list(hbw_name="Data Deficient", wikidata_qid="Q106512361", type="NA"))
+    if(tolower(user_input) %in% c("withe", "whit")) user_input <- "white"
+    
+    match <- db %>% filter(tolower(hbw_name) == tolower(user_input))
+    if(nrow(match) > 0) return(as.list(match[1,]))
+    
+    # Suggestions logic
+    suggestions <- db %>% filter(str_detect(tolower(hbw_name), tolower(user_input))) %>% pull(hbw_name)
+    if(length(suggestions) == 0) {
+      dist_vector <- stringdist(tolower(user_input), tolower(db$hbw_name))
+      suggestions <- db$hbw_name[order(dist_vector)[1:12]]
+    }
+    
+    selected <- select.list(suggestions, title = paste("Select color for", region_name), graphics = TRUE)
+    if(selected != "") return(as.list(db[db$hbw_name == selected, ][1,]))
+  }
+}
+
+# --- 4. MAIN LOOP ---
+pending_species <- annotation_matrix %>% 
+  filter(is.na(wikidata_color_Q) | wikidata_color_Q == "" | wikidata_color_Q == "NA") %>% 
+  distinct(scientific_name)
+
+if(nrow(pending_species) == 0) {
+  rstudioapi::showDialog("Done", "All species are already curated!")
+} else {
+  for(i in 1:nrow(pending_species)) {
+    curr_sp <- pending_species$scientific_name[i]
+    
+    # 4.1 Multi-Photo Evidence
+    all_sp_images <- annotation_matrix %>% filter(scientific_name == curr_sp) %>% pull(image_url) %>% unique()
+    num_imgs <- length(all_sp_images)
+    
+    n_to_open <- rstudioapi::showPrompt("Evidence", 
+                                        paste0(curr_sp, ": ", num_imgs, " photos found. How many to open?"), "3")
+    n_to_open <- as.integer(n_to_open)
+    
+    if(!is.na(n_to_open) && n_to_open > 0) {
+      for(img in head(all_sp_images, n_to_open)) browseURL(img)
+    }
+    
+    # 4.2 Sex Identification
+    sex_val <- select.list(c("Male", "Female", "Juvenile", "Unknown"), 
+                           title = paste("Sex for:", curr_sp), graphics = TRUE)
+    if(sex_val == "") sex_val <- "Unknown"
+    
+    # 4.3 Anatomical Regions
+    species_answers <- list()
+    regions <- c("Back", "Belly", "Bill", "Breast", "Chin", "Crest", "Crown", 
+                 "Flanks", "Gorget", "Nape", "Rectrices", "Remiges", "Rump", "Tail coverts")
+    
+    for(reg in regions) {
+      res <- get_color_gui(reg, color_db)
+      if(is.null(res)) break
+      species_answers[[reg]] <- res
+    }
+    
+    # 4.4 Propagation & Save
+    for(reg in regions) {
+      rows <- annotation_matrix$scientific_name == curr_sp & annotation_matrix$region == reg
+      annotation_matrix[rows, "wikidata_color_Q"] <- species_answers[[reg]]$wikidata_qid
+      annotation_matrix[rows, "optical_property"] <- species_answers[[reg]]$type
+      annotation_matrix[rows, "sex_P21"] <- sex_val
+      annotation_matrix[rows, "annotator_metadata"] <- paste0("User: ", current_annotator, " | Session: ", session_time)
+    }
+    
+    write.csv(annotation_matrix, output_file, row.names = FALSE)
+    
+    # 4.5 Continue?
+    cont <- rstudioapi::showQuestion("Progress Saved", 
+                                     paste0(curr_sp, " is done. Continue to next species?"), "Yes", "No")
+    if(!cont) break
+  }
+}
