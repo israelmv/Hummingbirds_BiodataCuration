@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Muñoz-Velasco"
+  given-names: "Israel"
+- family-names: "Michán"
+  given-names: "Layla"
+title: "Hummingbirds_BiodataCuration: Phenotypic Evidence Matrix for Trochilidae"
+version: 1.0.0
+date-released: 2026-04-01
+url: "https://github.com/israelmv/Hummingbirds_BiodataCuration"
