@@ -1,19 +1,24 @@
 # ==============================================================================
-# STEP 01: Taxonomic Alignment and Citizen Science Data Harvesting
-# Project: Trochilidae Knowledge Graph (TKG)
+# PROJECT: Trochilidae Knowledge Graph (TKG)
+# STEP 01: Taxonomic Alignment and Data Harvesting
+# SYSTEM ARCHITECT: Isra | BIOCURADURÍA LEAD: Layla
 # ==============================================================================
 
-library(taxize)
-library(tidyverse)
-library(rgbif)
-library(rinat)
+# --- 1. DEPENDENCY CHECK ---
+req_pkgs <- c("taxize", "tidyverse", "rgbif", "rinat", "dplyr")
+new_pkgs <- req_pkgs[!(req_pkgs %in% installed.packages()[,"Package"])]
+if(length(new_pkgs)) install.packages(new_pkgs)
+library(taxize); library(tidyverse); library(rgbif); library(rinat)
 
-# 1. TAXONOMIC CHECK
+# --- 2. ENVIRONMENT SETUP ---
+if(!dir.exists("data")) dir.create("data")
+
+# --- 3. TAXONOMIC BACKBONE ---
 target_family <- "Trochilidae"
 check_name <- name_backbone(name = target_family, rank = "family")
-if(is.null(check_name$usageKey)) stop("Error: Family name not found.")
+if(is.null(check_name$usageKey)) stop("Family 'Trochilidae' not found in GBIF Backbone.")
 
-# 2. HARVEST ACCEPTED SPECIES (GBIF ID: 5289)
+# Harvest Accepted Species (GBIF ID: 5289)
 species_taxonomy <- name_lookup(higherTaxonKey = 5289, rank = "SPECIES", limit = 1000)
 master_list <- species_taxonomy$data %>%
   filter(taxonomicStatus == "ACCEPTED") %>%
@@ -22,11 +27,11 @@ master_list <- species_taxonomy$data %>%
 
 write.csv(master_list, "data/Trochilidae_Master_List.csv", row.names = FALSE)
 
-# 3. HARVEST RESEARCH-GRADE EVIDENCE (iNaturalist)
+# --- 4. iNATURALIST HARVESTING ---
 all_observations <- list()
 for(i in 1:nrow(master_list)){
   species_name <- master_list$canonicalName[i]
-  print(paste("Harvesting:", species_name, "(", i, "/", nrow(master_list), ")"))
+  message(paste("Harvesting:", species_name, "(", i, "/", nrow(master_list), ")"))
   
   obs <- tryCatch({ get_inat_obs(query = species_name) }, error = function(e) return(NULL))
   
@@ -40,10 +45,12 @@ for(i in 1:nrow(master_list)){
       all_observations[[i]] <- obs_filtered
     }
   }
-  Sys.sleep(0.5) # UNAM IP Protection
+  Sys.sleep(0.5) # Protect IP from rate-limiting
 }
 
-# 4. CONSOLIDATION
+# --- 5. CONSOLIDATION ---
 final_inat_data <- bind_rows(all_observations)
 saveRDS(final_inat_data, "data/tkg_hummingbirds_research_grade.rds")
 write.csv(final_inat_data, "data/tkg_hummingbirds_research_grade.csv", row.names = FALSE)
+
+cat("\nDone. Records saved in /data folder.\n")
