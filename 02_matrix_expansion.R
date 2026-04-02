@@ -1,15 +1,24 @@
 # ==============================================================================
+# PROJECT: Trochilidae Knowledge Graph (TKG)
 # STEP 02: High-Throughput Matrix Expansion (Anatomical Segmentation)
-# Project: Trochilidae Knowledge Graph (TKG)
+# SYSTEM ARCHITECT: Isra | BIOCURADURÍA LEAD: Layla
 # ==============================================================================
 
 library(dplyr)
 library(tidyr)
 
-# Load acquired data
-if(!exists("final_inat_data")) final_inat_data <- readRDS("data/tkg_hummingbirds_research_grade.rds")
+# --- 1. DATA LOADING (REPRODUCIBLE PATH) ---
+rds_path <- "data/tkg_hummingbirds_research_grade.rds"
 
-# 1. ANATOMICAL SEGMENTATION MODEL (14 UNITS)
+if (!exists("final_inat_data")) {
+  if (file.exists(rds_path)) {
+    final_inat_data <- readRDS(rds_path)
+  } else {
+    stop("Data file not found. Run Script 01 first.")
+  }
+}
+
+# --- 2. ANATOMICAL SEGMENTATION MODEL (14 UNITS) ---
 anatomical_regions <- data.frame(
   region = c("Forehead", "Crown", "Nape", "Periocular", "Throat", "Back", 
              "Rump", "Upper tail-coverts", "Rectrices", "Remiges", 
@@ -20,7 +29,7 @@ anatomical_regions <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# 2. MATRIX EXPANSION
+# --- 3. MATRIX EXPANSION ---
 tkg_annotation_matrix <- final_inat_data %>%
   select(scientific_name, id, image_url) %>% 
   crossing(anatomical_regions) %>%
@@ -36,4 +45,4 @@ tkg_annotation_matrix <- final_inat_data %>%
   arrange(scientific_name, id, region)
 
 write.csv(tkg_annotation_matrix, "data/TKG_Evidence_Annotation_N-Obs.csv", row.names = FALSE)
-cat("Matrix Generated: 47,320 annotation points ready.\n")
+cat("Expansion Complete. 47,320 annotation points generated in /data.\n")
