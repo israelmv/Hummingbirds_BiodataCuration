@@ -48,12 +48,10 @@ get_color_gui <- function(region_name, db) {
     user_input <- str_trim(user_input)
     
     if(toupper(user_input) == "DD") return(list(hbw_name="Data Deficient", wikidata_qid="Q106512361", type="NA"))
-    if(tolower(user_input) %in% c("withe", "whit")) user_input <- "white"
     
     match <- db %>% filter(tolower(hbw_name) == tolower(user_input))
     if(nrow(match) > 0) return(as.list(match[1,]))
     
-    # Suggestions logic
     suggestions <- db %>% filter(str_detect(tolower(hbw_name), tolower(user_input))) %>% pull(hbw_name)
     if(length(suggestions) == 0) {
       dist_vector <- stringdist(tolower(user_input), tolower(db$hbw_name))
@@ -104,20 +102,42 @@ if(nrow(pending_species) == 0) {
       species_answers[[reg]] <- res
     }
     
-    # 4.4 Propagation & Save
+    # 4.4 AUTOMATED CONFIDENCE SCORING (The "Questions" approach)
+    cat("\n[SCORING] Assessing evidence quality for:", curr_sp)
+    
+    q1 <- select.list(c("High: Close-up and sharp", "Medium: Distant or slightly blurred", "Low: Very blurry or pixelated"),
+                      title = "How is the SHARPNESS/DISTANCE?", graphics = TRUE)
+    
+    q2 <- select.list(c("Optimal: Natural direct light", "Average: Some shadows or backlight", "Poor: Heavy shadow/Overexposed"),
+                      title = "How is the LIGHTING?", graphics = TRUE)
+    
+    q3 <- select.list(c("Total: All regions clear", "Partial: Most regions clear", "Minimal: Significant occlusion"),
+                      title = "How is the VISIBILITY?", graphics = TRUE)
+    
+    # Logic to convert answers to 1-5 score
+    points <- 0
+    if(str_starts(q1, "High")) points <- points + 2 else if(str_starts(q1, "Medium")) points <- points + 1
+    if(str_starts(q2, "Optimal")) points <- points + 2 else if(str_starts(q2, "Average")) points <- points + 1
+    if(str_starts(q3, "Total")) points <- points + 1
+    
+    conf_val <- points # Max 5, Min 0 (we'll treat 0 as 1)
+    if(conf_val == 0) conf_val <- 1
+    
+    # 4.5 Propagation & Save
     for(reg in regions) {
       rows <- annotation_matrix$scientific_name == curr_sp & annotation_matrix$region == reg
       annotation_matrix[rows, "wikidata_color_Q"] <- species_answers[[reg]]$wikidata_qid
       annotation_matrix[rows, "optical_property"] <- species_answers[[reg]]$type
       annotation_matrix[rows, "sex_P21"] <- sex_val
+      annotation_matrix[rows, "confidence_score"] <- conf_val
       annotation_matrix[rows, "annotator_metadata"] <- paste0("User: ", current_annotator, " | Session: ", session_time)
     }
     
     write.csv(annotation_matrix, output_file, row.names = FALSE)
     
-    # 4.5 Continue?
+    # 4.6 Continue?
     cont <- rstudioapi::showQuestion("Progress Saved", 
-                                     paste0(curr_sp, " is done. Continue to next species?"), "Yes", "No")
+                                     paste0(curr_sp, " saved with Score: ", conf_val, ". Continue?"), "Yes", "No")
     if(!cont) break
   }
 }
