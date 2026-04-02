@@ -1,1 +1,24 @@
+# Trochilidae Knowledge Graph (TKG): Biodata Curation
 
+[![R-Status](https://img.shields.io/badge/R-4.2+-blue.svg)](https://www.r-project.org/)
+[![Institution](https://img.shields.io/badge/UNAM-National%20Autonomous%20University%20of%20Mexico-gold)](https://www.unam.mx/)
+
+## Project Overview
+This repository contains the computational pipeline for the **Trochilidae Knowledge Graph (TKG)**. The project integrates citizen science (iNaturalist), taxonomic authorities (IOC/GBIF), and semantic web technologies (Wikidata/RDF) to create a high-resolution phenotypic matrix of hummingbird plumage across 14 anatomical regions.
+
+## Repository Structure
+- `scripts/01_data_acquisition.R`: Automated harvesting of research-grade observations.
+- `scripts/02_matrix_expansion.R`: Generation of the 14-region phenotypic matrix (47,320 data points).
+- `scripts/03_tkg_visualizer.R`: A semi-automated tool to facilitate expert biocuraduría.
+
+## Getting Started
+1. Clone the repository.
+2. Run `scripts/01_data_acquisition.R` to establish the taxonomic backbone.
+3. Use the `TKG Visualizer` to verify phenotypic traits against the HBW Color Standard.
+
+## Authors
+- **Isra (Project Lead)** - National Autonomous University of Mexico (UNAM).
+- **Layla (Biocuraduría & Annotation)**.
+
+## License
+This project is licensed under the MIT License - see the LICENSE file for details.
