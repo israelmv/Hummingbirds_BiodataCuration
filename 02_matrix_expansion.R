@@ -1,48 +1,46 @@
 # ==============================================================================
 # PROJECT: Trochilidae Knowledge Graph (TKG)
-# STEP 02: High-Throughput Matrix Expansion (Anatomical Segmentation)
+# STEP 02: High-Throughput Matrix Expansion (Arizmendi Segmentation)
 # SYSTEM ARCHITECT: Isra | BIOCURADURÍA LEAD: Layla
 # ==============================================================================
 
 library(dplyr)
 library(tidyr)
 
-# --- 1. DATA LOADING (REPRODUCIBLE PATH) ---
+# --- 1. DATA LOADING ---
 rds_path <- "data/tkg_hummingbirds_research_grade.rds"
-
-if (!exists("final_inat_data")) {
-  if (file.exists(rds_path)) {
+if (file.exists(rds_path)) {
     final_inat_data <- readRDS(rds_path)
-  } else {
+} else {
     stop("Data file not found. Run Script 01 first.")
-  }
 }
 
-# --- 2. ANATOMICAL SEGMENTATION MODEL (14 UNITS) ---
+# --- 2. ARIZMENDI ANATOMICAL MODEL (14 UNITS - UPDATED) ---
+# Estos QIDs coinciden con tu Tabla 2 y el modelo de 14 regiones de México/América
 anatomical_regions <- data.frame(
-  region = c("Forehead", "Crown", "Nape", "Periocular", "Throat", "Back", 
-             "Rump", "Upper tail-coverts", "Rectrices", "Remiges", 
-             "Breast", "Abdomen", "Flanks", "Undertail-coverts"),
-  region_qid = c("Q226145", "Q2152862", "Q173365", "Q3455110", "Q207863", "Q3289871", 
-                 "Q2411995", "Q3308365", "Q2141527", "Q2152875", "Q207851", "Q207857", 
-                 "Q3073715", "Q3151475"),
+  region = c("Gorget", "Crest", "Nape", "Crown", "Bill", "Breast", "Flanks", 
+             "Rectrices", "Rump", "Remiges", "Chin", "Belly", "Tail coverts", "Back"),
+  region_qid = c("Q5586271", "Q1589150", "Q374727", "Q3321195", "Q31528", "Q21342622", "Q1427103", 
+                 "Q475059", "Q1790261", "Q1433997", "Q82714", "Q3429717", "Q3178731", "Q2602751"),
   stringsAsFactors = FALSE
 )
 
 # --- 3. MATRIX EXPANSION ---
+# Expandimos cada observación de iNaturalist por las 14 regiones de Arizmendi
 tkg_annotation_matrix <- final_inat_data %>%
   select(scientific_name, id, image_url) %>% 
   crossing(anatomical_regions) %>%
   mutate(
     is_visible = TRUE,
-    hbw_color_primary = NA,
-    hbw_color_secondary = NA,
-    optical_property = NA, 
-    confidence_score = NA,
+    sex_P21 = NA,             # Placeholder crucial para el dicromatismo (Q44148/Q43445)
+    wikidata_color_Q = NA,    # Aquí Layla pondrá el Q del color (Ej: Q3133 para verde)
+    optical_property = NA,    # Para anotar Iridiscencia (Q957208)
+    confidence_score = 1.0,   # Score inicial de confianza
     annotator_metadata = "Layla",
     timestamp = Sys.time()
   ) %>%
   arrange(scientific_name, id, region)
 
+# --- 4. EXPORT ---
 write.csv(tkg_annotation_matrix, "data/TKG_Evidence_Annotation_N-Obs.csv", row.names = FALSE)
-cat("Expansion Complete. 47,320 annotation points generated in /data.\n")
+cat("Expansion Complete.", nrow(tkg_annotation_matrix), "annotation points generated for all America.\n")
