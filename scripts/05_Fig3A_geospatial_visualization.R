@@ -1,56 +1,87 @@
 # ==============================================================================
 # PROJECT: Trochilidae Knowledge Graph (TKG)
-# FIGURE 3: Full Continental Distribution
+# FIGURE 3: Full Biogeographic Hybrid Map (Final Version)
+# AUTHOR: IsraelMV (UNAM)
 # ==============================================================================
 
-# 1. CARGA Y LIMPIEZA AUTOMÁTICA
-raw_data <- read.csv("data/tkg_hummingbirds_research_grade.csv")
+# --- 1. DEPENDENCY MANAGEMENT ---
+required_packages <- c("tidyverse", "sf", "elevatr", "terra", "tidyterra", 
+                       "viridis", "ggnewscale", "rnaturalearth", "rnaturalearthdata")
+new_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages, dependencies = TRUE)
 
-# Filtro de integridad: Solo registros con Coordenadas
-clean_data <- raw_data %>%
-  filter(!is.na(longitude) & !is.na(latitude))
+library(tidyverse)
+library(sf)
+library(elevatr)
+library(terra)
+library(tidyterra)
+library(viridis)
+library(ggnewscale)
+library(rnaturalearth)
 
-# Cálculo de la N final para el paper
-n_final <- nrow(clean_data)
-n_perdidos <- nrow(raw_data) - n_final
+# --- 2. DATA LOADING & SPATIAL CLEANING ---
+input_path <- "data/tkg_hummingbirds_research_grade.csv"
+if(!file.exists(input_path)) stop("Input file missing in /data folder.")
 
-cat("Resumen de Integridad:\n")
-cat("- Registros totales: ", nrow(raw_data), "\n")
-cat("- Registros con NA (eliminados): ", n_perdidos, "\n")
-cat("- N final para el mapa y TKG: ", n_final, "\n")
+raw_data <- read.csv(input_path, stringsAsFactors = FALSE)
+clean_data <- raw_data %>% filter(!is.na(longitude) & !is.na(latitude))
 
-# Convertir a Objeto Espacial
-inat_sf <- st_as_sf(clean_data, coords = c("longitude", "latitude"), crs = 4326)
+# Spatial processing
+inat_sf_raw <- st_as_sf(clean_data, coords = c("longitude", "latitude"), crs = 4326)
+world_ref <- ne_countries(scale = 50, returnclass = "sf") %>% 
+  st_make_valid() %>% 
+  select(continent, name)
 
-# 2. MAPA BASE Y PROYECCIÓN (SIN CORTES)
-ne_countries <- ne_countries(scale = 50, continent = c("north america", "south america"), returnclass = "sf")
+# Spatial join to filter only Americas
+points_joined <- st_join(inat_sf_raw, world_ref, join = st_intersects)
+clean_data_americas <- points_joined %>%
+  filter(continent %in% c("North America", "South America")) %>%
+  filter(!is.na(name))
 
-# 3. VISUALIZACIÓN
-tkg_map_full <- ggplot() +
-  geom_sf(data = st_graticule(crs = 4326), color = "#D5D8DC", size = 0.1, linetype = "dotted") +
-  geom_sf(data = ne_countries, fill = "#F8F9F9", color = "#B2BABB", size = 0.2) +
-  geom_sf(data = inat_sf, color = "#D4AC0D", size = 0.5, alpha = 0.3) +
+# --- 3. THE FIX: RE-EXTRACT COORDINATES ---
+# stat_density_2d needs explicit X and Y columns, but st_join hides them in 'geometry'
+coords <- st_coordinates(clean_data_americas)
+clean_data_final <- clean_data_americas %>%
+  mutate(longitude = coords[,1],
+         latitude = coords[,2])
+
+# --- 4. TERRAIN RELIEF ---
+bbox_americas <- data.frame(x = c(-170, -30), y = c(-60, 75))
+message("[SYSTEM] Fetching Elevation Relief (DEM)...")
+elev_raster <- get_elev_raster(bbox_americas, prj = "EPSG:4326", z = 2, clip = "bbox")
+elev_terra <- rast(elev_raster)
+
+# --- 5. VISUALIZATION ---
+tkg_map_final <- ggplot() +
+  geom_spatraster(data = elev_terra) +
+  scale_fill_gradientn(colors = c("#21618C", "#2E86C1", "#AED6F1", "#F7DC6F", "#E67E22", "#A04000", "#FBFCFC"),
+                       values = scales::rescale(c(-5000, 0, 1, 1000, 2500, 4500, 8000)),
+                       guide = "none") +
+  new_scale_fill() +
   
-  # Ajuste de límites para Canadá y Brasil
-  coord_sf(crs = "+proj=moll +lon_0=-90 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
-           xlim = c(-8000000, 6000000), ylim = c(-6500000, 8500000)) +
+  geom_sf(data = world_ref, fill = NA, color = "white", size = 0.1, alpha = 0.2) +
   
-  # Título dinámico: Usa paste() para que el número cambie solo
-  labs(title = "Figure 1 | Continental Scale of Trochilidae Phenotypic Evidence",
-       subtitle = paste("Geospatial distribution of n =", n_final, "validated observations"),
-       caption = paste("Excluded", n_perdidos, "records without coordinates | TKG Pipeline 2026"),
-       x = "Longitude", y = "Latitude") +
+  # Now 'longitude' and 'latitude' exist again for this layer
+  stat_density_2d(data = clean_data_final, aes(x = longitude, y = latitude, fill = after_stat(level)), 
+                  geom = "polygon", alpha = 0.4, bins = 15) +
+  scale_fill_viridis_c(option = "magma", name = "Density") +
+  
+  geom_sf(data = clean_data_final, color = "white", size = 0.4, alpha = 0.7) +
+  geom_sf(data = clean_data_final, color = "#0E6251", size = 0.1, alpha = 0.5) +
+  
+  coord_sf(crs = 4326, xlim = c(-170, -30), ylim = c(-60, 75)) +
+  
+  labs(title = "Biogeographic Distribution of Trochilidae Phenotypes",
+       subtitle = paste("Hybrid mapping of S =", n_distinct(clean_data_final$scientific_name), "species"),
+       caption = "TKG Pipeline 2026 | Elevation: AWS DEM | Projection: WGS84") +
   
   theme_minimal() +
-  theme(
-    text = element_text(family = "serif"),
-    plot.title = element_text(face = "bold", size = 14, color = "#17202A"),
-    plot.subtitle = element_text(size = 11, color = "#566573"),
-    panel.background = element_rect(fill = "#FBFCFC", color = NA),
-    axis.text = element_text(size = 7, color = "#AEB6BF"),
-    axis.title = element_text(size = 9, color = "#85929E")
-  )
+  theme(text = element_text(family = "serif"),
+        panel.background = element_rect(fill = "#EBF5FB", color = NA),
+        panel.grid = element_blank())
 
-# 4. GUARDAR
-ggsave("results/Fig3_Full_Continental_Map_Final.png", plot = tkg_map_full, width = 8, height = 11, dpi = 600)
-ggsave("results/Fig3_Full_Continental_Map_Final.pdf", plot = tkg_map_full, width = 8, height = 11)
+# --- 6. EXPORT ---
+dir.create("results", showWarnings = FALSE)
+ggsave("results/Fig3_TKG_Hybrid_Distribution_FINAL.png", plot = tkg_map_final, width = 9, height = 12, dpi = 600)
+ggsave("results/Fig3_TKG_Hybrid_Distribution_FINAL.pdf", plot = tkg_map_final, width = 9, height = 12)
+cat("[SUCCESS] Figure generated.\n")
