@@ -1,35 +1,42 @@
-# Trochilidae Knowledge Graph (TKG): Biodata Curation
+Trochilidae Knowledge Graph (TKG): Biodata Curation
+Project Overview
+This repository contains the end-to-end computational pipeline for the Trochilidae Knowledge Graph (TKG). The project integrates massive citizen science data (iNaturalist), expert taxonomic authorities (Howard & Moore/HBW), and semantic web technologies (Wikidata/RDF) to generate a high-resolution phenotypic matrix of hummingbird plumage across 14 precise anatomical regions.
 
-[![R-Status](https://img.shields.io/badge/R-4.2+-blue.svg)](https://www.r-project.org/)
-[![Institution](https://img.shields.io/badge/UNAM-National%20Autonomous%20University%20of%20Mexico-gold)](https://www.unam.mx/)
-[![Dictionary-Size](https://img.shields.io/badge/Colors-641%20Curated-green.svg)](data/color_dictionary_hbw_wikidata.csv)
+Repository Structure
+Scripts
+scripts/01_data_acquisition.R: Initial harvesting and taxonomic backbone establishment.
+scripts/01b_massive_geospatial_thinning.R: Iterative yearly acquisition (2020-2026) and 10 km2 grid-based spatial thinning.
+scripts/02_matrix_expansion.R: Generation of the comprehensive 14-region phenotypic matrix (47,320 data points).
+scripts/03_semantic_color_dictionary.R: Integration of the HBW/BirdLife color standards with Wikidata.
+scripts/04_tkg_interactive_curator.R: Expert-in-the-loop tool for real-time validation of phenotypic traits against in vivo records.
+scripts/05_Fig3AandB_geospatial_visualization_and_Barchart.R: Generation of Figure 3 (Hybrid Relief Map & Taxonomic Richness).
+scripts/wikidata_biocentric_color_lexicon.sparql: Specialized SPARQL lexicon for semantic Wikification.
 
-## Project Overview
-This repository contains the computational pipeline for the **Trochilidae Knowledge Graph (TKG)**. The project integrates citizen science (iNaturalist), taxonomic authorities (IOC/GBIF), and semantic web technologies (Wikidata/RDF) to create a high-resolution phenotypic matrix of hummingbird plumage across 14 anatomical regions.
+Data
+data/massive_thinned_observations.csv: The bias-corrected analytical dataset (Big Data scale).
+data/color_dictionary_hbw_wikidata.csv: The curated 641-color master list.
+data/TKG_Evidence_Annotation_N-Obs.csv: Curated phenotypic assertions with evidence links.
+data/tkg_hummingbirds_research_grade.csv: Validated research-grade occurrences.
+data/Wikidata_colors.csv: Raw Wikidata color entities before biocentric sanitization.
 
-## Repository Structure
-- `scripts/01_data_acquisition.R`: Automated harvesting of research-grade observations.
-- `scripts/02_matrix_expansion.R`: Generation of the 14-region phenotypic matrix (47,320 data points).
-- `scripts/03_tkg_visualizer.R`: A semi-automated tool to facilitate expert biocuraduría.
-- `scripts/04_biocentric_dictionary.R`: Advanced filtration of Wikidata entities to establish a specialized color lexicon.
+Key Methodology: Spatial & Taxonomic Integrity
+To ensure FAIR principles and scientific rigor, the TKG implements:
+Spatial Thinning: Mitigation of the "smartphone proximity effect" via a 0.03 degree resolution grid to ensure biodiversity hotspots reflect biological presence.
 
-## Key Data Components
-### Biocentric Color Dictionary
-The TKG utilizes a curated lexicon of **641 color entities** derived from Wikidata. To ensure scientific rigor, we implemented a strict filtration protocol that:
-* **Excluded** industrial standards (Pantone, RAL, ISCC).
-* **Purged** non-biological "noise" (commercial brands, cellular/metabolic processes).
-* **Sanitized** "ghost entities" (QID-only labels).
-* **Mapped** optical properties (Iridescent vs. Pigmentary) to facilitate phenotypic modeling.
+14-Region Anatomy: Detailed curation of: Gorget, Crest, Nape, Crown, Bill, Breast, Flanks, Rectrices, Rump, Remiges, Chin, Belly, Tail Coverts, and Back.
+LOD Integration: Mapping of all phenotypic traits to unique Wikidata QIDs for machine-readable interoperability.
 
-## Getting Started
-1. Clone the repository.
-2. Run `scripts/01_data_acquisition.R` to establish the taxonomic backbone.
-3. Run `scripts/04_biocentric_dictionary.R` to generate the sanitized color mapping.
-4. Use the `TKG Visualizer` to verify phenotypic traits against the HBW Color Standard using the 641-color master list.
+Getting Started
+Clone the repository.
 
-## Authors
-- **Israel Muñoz-Velasco (Project Lead, Biocuraduría & Annotation Lead)** - National Autonomous University of Mexico (UNAM).
-- **Layla Michán (Project Lead, Biocuraduría & Annotation Lead)** - National Autonomous University of Mexico (UNAM).
+Run scripts/01_data_acquisition.R to establish the core taxa.
+Run scripts/01b_massive_geospatial_thinning.R to generate the analytical geospatial dataset.
+Execute scripts/04_tkg_interactive_curator.R for the expert validation phase.
+Generate final visualizations with scripts/05_Fig3AandB_geospatial_visualization_and_Barchart.R.
 
-## License
+Authors
+Israel Muñoz-Velasco (Project Lead, Biocuraduría & Annotation Lead) - National Autonomous University of Mexico (UNAM).
+Layla Michán (Project Lead, Biocuraduría & Annotation Lead) - National Autonomous University of Mexico (UNAM).
+
+License
 This project is licensed under the MIT License - see the LICENSE file for details.
